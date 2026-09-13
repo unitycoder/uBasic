@@ -1,5 +1,7 @@
 # uBasic
 
+<img width="678" height="423" alt="image" src="https://github.com/user-attachments/assets/3fc89591-50cb-44f6-a36e-be08bc6d67bb" />
+
 A QBasic-shaped scripting language for Unity, with a palette-indexed texture as
 its screen. Lexer, bytecode compiler and VM in ~1700 lines of engine-free C#,
 plus a ~280-line Unity layer.
