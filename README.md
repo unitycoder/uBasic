@@ -1,3 +1,5 @@
+<img src="https://img.shields.io/badge/VibeCoded-100%25-green" alt="AI Generated Content"/>
+
 # uBasic
 
 <img width="678" height="423" alt="image" src="https://github.com/user-attachments/assets/3fc89591-50cb-44f6-a36e-be08bc6d67bb" />
