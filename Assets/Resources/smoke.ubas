@@ -1,0 +1,85 @@
+' uBasic smoke test -- exercises most of the language in one screen.
+
+SCREEN 320, 200
+CLS 1
+
+DIM x%, y%, i%
+DIM msg$
+
+' --- primitives ---
+LINE (8, 8)-(150, 58), 4, BF
+LINE (8, 8)-(150, 58), 15, B
+CIRCLE (240, 33), 25, 14, F
+CIRCLE (240, 33), 25, 15
+
+' --- a curve, one PSET at a time ---
+FOR x% = 0 TO 319
+  y% = 96 + CINT(SIN(x% / 18.0) * 18)
+  PSET (x%, y%), 10
+NEXT x%
+
+' --- outline then flood fill ---
+LINE (200, 120)-(305, 165), 15, B
+PAINT (250, 142), 2
+
+' --- arrays ---
+DIM grid%(4, 4)
+FOR y% = 0 TO 4
+  FOR x% = 0 TO 4
+    grid%(x%, y%) = x% * y%
+  NEXT x%
+NEXT y%
+
+' --- text ---
+COLOR 15, 1
+LOCATE 9, 1
+PRINT "uBasic v0.1 -- smoke test"
+COLOR 14, 1
+LOCATE 11, 1
+PRINT "SumTo(10) ="; SumTo(10)
+LOCATE 12, 1
+PRINT "grid(3,4)  ="; grid%(3, 4)
+LOCATE 13, 1
+msg$ = "concat " + STR$(42) + " ok"
+PRINT msg$
+LOCATE 14, 1
+PRINT "MID$       ="; MID$("HELLO WORLD", 7, 5)
+LOCATE 15, 1
+PRINT "3 ^ 4      ="; 3 ^ 4
+LOCATE 16, 1
+PRINT "17 MOD 5   ="; 17 MOD 5
+
+' --- control flow ---
+COLOR 11, 1
+LOCATE 18, 1
+FOR i% = 1 TO 15
+  SELECT CASE i% MOD 3
+    CASE 0
+      PRINT "F";
+    CASE 1
+      PRINT ".";
+    CASE ELSE
+      PRINT "o";
+  END SELECT
+NEXT i%
+
+LOCATE 20, 1
+COLOR 12, 1
+i% = 0
+DO
+  i% = i% + 1
+  IF i% = 4 THEN PRINT "[skip]"; : GOTO cont
+  PRINT i%;
+cont:
+LOOP WHILE i% < 8
+
+END
+
+FUNCTION SumTo%(n%)
+  DIM s%, k%
+  s% = 0
+  FOR k% = 1 TO n%
+    s% = s% + k%
+  NEXT k%
+  SumTo% = s%
+END FUNCTION

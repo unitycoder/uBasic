@@ -1,0 +1,60 @@
+' Bat and ball -- steer with LEFT/RIGHT or A/D.
+' Shows KEY input, per-frame WAIT, and EXIT DO.
+
+CONST PW% = 40
+
+DIM bx!, by!, vx!, vy!, px!
+DIM score%, lives%, msg$
+
+SCREEN 320, 200
+bx! = 160 : by! = 60
+vx! = 1.7 : vy! = 1.3
+px! = 140 : score% = 0 : lives% = 3
+
+DO
+  CLS 0
+
+  ' --- input ---
+  IF KEY(KEY_LEFT%)  OR KEY(ASC("A")) THEN px! = px! - 4
+  IF KEY(KEY_RIGHT%) OR KEY(ASC("D")) THEN px! = px! + 4
+  IF px! < 0 THEN px! = 0
+  IF px! > 320 - PW% THEN px! = 320 - PW%
+
+  ' --- ball ---
+  bx! = bx! + vx!
+  by! = by! + vy!
+  IF bx! < 4 OR bx! > 315 THEN vx! = -vx!
+  IF by! < 4 THEN vy! = -vy!
+
+  ' --- paddle bounce, angled by where it hits ---
+  IF by! > 181 AND by! < 190 AND bx! > px! - 4 AND bx! < px! + PW% + 4 THEN
+    vy! = -ABS(vy!)
+    vx! = vx! + (bx! - (px! + PW% / 2)) / 14.0
+    score% = score% + 1
+  END IF
+
+  IF by! > 200 THEN
+    lives% = lives% - 1
+    bx! = 160 : by! = 60 : vy! = 1.3
+    IF lives% <= 0 THEN EXIT DO
+  END IF
+
+  ' --- draw ---
+  LINE (CINT(px!), 186)-(CINT(px!) + PW%, 191), 11, BF
+  CIRCLE (bx!, by!), 4, 14, F
+
+  COLOR 15, 0
+  LOCATE 0, 0
+  msg$ = "score " + STR$(score%) + "   lives " + STR$(lives%)
+  PRINT msg$;
+
+  WAIT
+LOOP
+
+CLS 4
+COLOR 15, 4
+LOCATE 11, 5
+PRINT "GAME OVER"
+LOCATE 13, 5
+PRINT "final score"; score%
+END

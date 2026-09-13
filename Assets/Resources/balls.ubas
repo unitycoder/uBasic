@@ -1,0 +1,39 @@
+' Bouncing balls -- demonstrates WAIT: the program is one DO loop that
+' suspends mid-execution every frame and resumes where it left off.
+
+CONST N% = 13
+
+DIM x!(N%), y!(N%), dx!(N%), dy!(N%), c%(N%)
+DIM i%, t%, hud$
+
+SCREEN 320, 200
+RANDOMIZE 7
+
+FOR i% = 0 TO N%
+  x!(i%)  = RND(300) + 10
+  y!(i%)  = RND(180) + 10
+  dx!(i%) = RND(400) / 100.0 - 2.0
+  dy!(i%) = RND(400) / 100.0 - 2.0
+  c%(i%)  = 9 + (i% MOD 7)
+NEXT i%
+
+t% = 0
+DO
+  CLS 1
+  FOR i% = 0 TO N%
+    x!(i%) = x!(i%) + dx!(i%)
+    y!(i%) = y!(i%) + dy!(i%)
+    IF x!(i%) < 8 OR x!(i%) > 311 THEN dx!(i%) = -dx!(i%)
+    IF y!(i%) < 8 OR y!(i%) > 191 THEN dy!(i%) = -dy!(i%)
+    CIRCLE (x!(i%), y!(i%)), 7, c%(i%), F
+    CIRCLE (x!(i%), y!(i%)), 7, 15
+  NEXT i%
+
+  COLOR 15, 1
+  LOCATE 0, 0
+  hud$ = "frame " + STR$(t%) + "  balls " + STR$(N% + 1)
+  PRINT hud$;
+
+  t% = t% + 1
+  WAIT
+LOOP
