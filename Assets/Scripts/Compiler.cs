@@ -386,6 +386,9 @@ namespace UBasic {
                     case "LOCATE":    FixedProc("__locate", 2); return;
                     case "PALETTE":   FixedProc("__palette", 4); return;
                     case "RANDOMIZE": FixedProc("__randomize", 1); return;
+                    case "SOUND":     SoundStatement(); return;
+                    case "BEEP":      BeepStatement(); return;
+                    case "PLAY":      PlayStatement(); return;
                     case "WAIT":      _p++; _c.Emit(Op.Wait, 0, 0, line); EndOfStatement(); return;
                     case "END":       _p++; _c.Emit(Op.Halt, 0, 0, line); EndOfStatement(); return;
                 }
@@ -960,6 +963,38 @@ namespace UBasic {
             EndOfStatement();
         }
 
+        // SOUND always blocks, as in QBasic. PLAY blocks only while the music
+        // is in foreground mode (MF), which is runtime state inside the string --
+        // so PLAY always emits the wait and the device reports "not busy" when
+        // the queued notes were tagged background (MB).
+        private void SoundStatement() {
+            int line = Line;
+            _p++;
+            CoerceTo(Expr(), VType.Single, line);
+            Expect(T.Comma, "','");
+            CoerceTo(Expr(), VType.Single, line);
+            EmitHost("__sound", 2, line);
+            _c.Emit(Op.AwaitSound, 0, 0, line);
+            EndOfStatement();
+        }
+
+        private void BeepStatement() {
+            int line = Line;
+            _p++;
+            EmitHost("__beep", 0, line);
+            _c.Emit(Op.AwaitSound, 0, 0, line);
+            EndOfStatement();
+        }
+
+        private void PlayStatement() {
+            int line = Line;
+            _p++;
+            CoerceTo(Expr(), VType.Str, line);
+            EmitHost("__play", 1, line);
+            _c.Emit(Op.AwaitSound, 0, 0, line);
+            EndOfStatement();
+        }
+
         private void PrintStatement() {
             int line = Line;
             _p++;
@@ -1096,11 +1131,13 @@ namespace UBasic {
                 VType r = UnaryExpr();
 
                 if (isMod || k == T.Backslash) {
-                    // Integer-only operators: force both sides down to INTEGER.
-                    if (t == VType.Single) { _c.Emit(Op.F2I, 0, 0, line); }
-                    if (r == VType.Single) { _c.Emit(Op.F2I, 0, 0, line); }
-                    else if (t == VType.Single && r == VType.Int) { }
-                    CoerceTo(r == VType.Single ? VType.Int : r, VType.Int, line);
+                    // MOD and \\ are integer-only. The right operand is on top
+                    // of the stack and the left is underneath it, so each side
+                    // needs its own conversion opcode.
+                    if (t == VType.Str || r == VType.Str)
+                        throw new UBasicError("MOD and \\ need numbers", line);
+                    if (r == VType.Single) _c.Emit(Op.F2I, 0, 0, line);
+                    if (t == VType.Single) _c.Emit(Op.F2IUnder, 0, 0, line);
                     _c.Emit(isMod ? Op.ModI : Op.IDiv, 0, 0, line);
                     t = VType.Int;
                     continue;

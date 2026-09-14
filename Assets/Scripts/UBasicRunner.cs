@@ -35,6 +35,16 @@ namespace UBasic {
         [Tooltip("Nearest-neighbour keeps the pixels crisp when upscaled.")]
         public bool PointFilter = true;
 
+        [Header("Audio")]
+        public bool EnableSound = true;
+        [Range(0f, 1f)] public float Volume = 0.28f;
+        [Tooltip("Generate the full 84-note table on start so no note ever " +
+                 "costs a clip allocation mid-game.")]
+        public bool PrewarmNotes = true;
+        [Tooltip("Sample-accurate note scheduling. Turn off only if a platform " +
+                 "mishandles PlayScheduled.")]
+        public bool ScheduledAudio = true;
+
         [Header("Execution")]
         [Tooltip("Instruction ceiling per frame. A program that blows through " +
                  "this without hitting WAIT is stopped rather than hanging the editor.")]
@@ -45,7 +55,6 @@ namespace UBasic {
         [Header("Performance")]
         [Tooltip("Target frames per second for the uBasic runner. Set to 0 for unlimited (run every Unity frame).")]
         public int TargetFps = 30;
-
         private float _frameAccumulator = 0f;
 
         public Texture2D Texture { get; private set; }
@@ -57,8 +66,11 @@ namespace UBasic {
         private Chunk _chunk;
         private byte[] _rgba;
         private UnityInputAdapter _input;
+        private UnityAudioAdapter _audio;
         private Renderer _renderer;
         private bool _reportedOverrun;
+        private float _blockedFor;
+        private bool _warnedBlocked;
 
         void OnEnable() {
             if (RestartOnEnable || _vm == null) Restart();
@@ -68,7 +80,8 @@ namespace UBasic {
             if (_vm == null || IsFaulted) return;
 
             // throttle execution to a target FPS if requested
-            if (TargetFps > 0) {
+            if (TargetFps > 0)
+            {
                 float interval = 1f / Mathf.Max(1, TargetFps);
                 _frameAccumulator += Time.deltaTime;
                 if (_frameAccumulator < interval) return;
@@ -76,6 +89,22 @@ namespace UBasic {
             }
 
             _input.Poll();
+            if (_audio != null) _audio.Update(_vm.Sound);
+            else _vm.Sound.HostBusy = false;      // no device: never block on sound
+
+            // A sound device that reports busy forever would stall the program
+            // silently, which is the worst way for this to fail. Say so.
+            if (_vm.Sound.IsBusy) {
+                _blockedFor += Time.unscaledDeltaTime;
+                if (_blockedFor > 10f && !_warnedBlocked) {
+                    _warnedBlocked = true;
+                    Debug.LogWarning("[uBasic] waiting on sound for over 10s. The audio " +
+                        "device is reporting busy and never clearing, so the program is " +
+                        "stalled at a SOUND/PLAY. Uncheck EnableSound to confirm.", this);
+                }
+            } else {
+                _blockedFor = 0f;
+            }
             _vm.Time = Time.time;
 
             RunState st = _vm.Run(InstructionBudget);
@@ -99,6 +128,8 @@ namespace UBasic {
             IsFaulted = false;
             FaultMessage = null;
             _reportedOverrun = false;
+            _blockedFor = 0f;
+            _warnedBlocked = false;
 
             string src = SourceFile != null ? SourceFile.text : Source;
             try {
@@ -108,6 +139,14 @@ namespace UBasic {
                 FaultMessage = e.Message;
                 Debug.LogError("[uBasic] compile error: " + e.Message, this);
                 return;
+            }
+
+            if (_audio != null) { _audio.Dispose(); _audio = null; }
+            if (EnableSound) {
+                _audio = new UnityAudioAdapter(transform);
+                _audio.Volume = Volume;
+                _audio.UseScheduling = ScheduledAudio;
+                if (PrewarmNotes) _audio.PrewarmNoteTable();
             }
 
             _scr = new Screen(Mathf.Max(8, ScreenWidth), Mathf.Max(8, ScreenHeight));
@@ -190,7 +229,12 @@ namespace UBasic {
             }
         }
 
+        void OnDisable() {
+            if (_audio != null) _audio.StopAll();
+        }
+
         void OnDestroy() {
+            if (_audio != null) { _audio.Dispose(); _audio = null; }
             if (Texture != null) {
                 if (Application.isPlaying) Destroy(Texture); else DestroyImmediate(Texture);
                 Texture = null;

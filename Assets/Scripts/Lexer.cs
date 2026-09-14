@@ -24,10 +24,10 @@ namespace UBasic {
 
     public class Lexer {
         private static readonly HashSet<string> Keywords = new HashSet<string> {
-            "AND","AS","B","BF","CALL","CASE","CIRCLE","CLS","COLOR","CONST","DIM","DO",
+            "AND","AS","B","BEEP","BF","CALL","CASE","CIRCLE","CLS","COLOR","CONST","DIM","DO",
             "ELSE","ELSEIF","END","EXIT","F","FOR","FUNCTION","GOTO","IF","INTEGER",
-            "LET","LINE","LOCATE","LOOP","MOD","NEXT","NOT","OR","PAINT","PALETTE",
-            "PRINT","PSET","RANDOMIZE","REM","SCREEN","SELECT","SHARED","SINGLE",
+            "LET","LINE","LOCATE","LOOP","MOD","NEXT","NOT","OR","PAINT","PALETTE","PLAY",
+            "PRINT","PSET","RANDOMIZE","REM","SCREEN","SELECT","SHARED","SINGLE","SOUND",
             "STEP","STRING","SUB","THEN","TO","UNTIL","WAIT","WEND","WHILE","XOR"
         };
 

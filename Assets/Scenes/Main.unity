@@ -240,7 +240,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bbc7f674d2b02654fb4314bc6a3eb005, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UBasic.UBasicRunner
-  SourceFile: {fileID: 9027929339269108002, guid: 0be113a2ac3e2cf43824709a84e5ee0b, type: 3}
+  SourceFile: {fileID: 9027929339269108002, guid: 4bf7d222b25b8924d9a09e34fc14aea4, type: 3}
   Source: "SCREEN 320, 200\nDIM t%\nDO\n  CLS 1\n  CIRCLE (160 + CINT(SIN(t% / 12.0)
     * 90), 100), 20, 14, F\n  LOCATE 0, 0\n  PRINT \"hello from uBasic\"\n  t% =
     t% + 1\n  WAIT\nLOOP\n"
@@ -248,6 +248,10 @@ MonoBehaviour:
   ScreenHeight: 200
   DisplayMode: 0
   PointFilter: 1
+  EnableSound: 1
+  Volume: 0.28
+  PrewarmNotes: 1
+  ScheduledAudio: 1
   InstructionBudget: 200000
   GcThreshold: 512
   RestartOnEnable: 1

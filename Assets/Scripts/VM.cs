@@ -43,6 +43,7 @@ namespace UBasic {
 
         public readonly StringHeap Strings = new StringHeap();
         public Screen Scr;
+        public readonly SoundDevice Sound = new SoundDevice();
         public IInput Input = new NullInput();
         public float Time;
         public Random Rng = new Random(12345);
@@ -71,6 +72,7 @@ namespace UBasic {
             for (int i = 0; i < _c.StringConsts.Count; i++)
                 _constHandles[i] = Strings.AllocPinned(_c.StringConsts[i]);
 
+            Sound.Reset();
             _sp = 0; _fc = 0; _localsTop = 0;
             _pc = _c.EntryPoint;
             FaultMessage = null; FaultLine = 0;
@@ -173,6 +175,7 @@ namespace UBasic {
                     case Op.I2F: _stack[_sp-1].F = _stack[_sp-1].I; break;
                     case Op.F2I: _stack[_sp-1].I = (int)_stack[_sp-1].F; break;
                     case Op.I2FUnder: _stack[_sp-2].F = _stack[_sp-2].I; break;
+                    case Op.F2IUnder: _stack[_sp-2].I = (int)_stack[_sp-2].F; break;
 
                     case Op.EqI: { int b = Pop().I; _stack[_sp-1].I = _stack[_sp-1].I == b ? -1 : 0; break; }
                     case Op.NeI: { int b = Pop().I; _stack[_sp-1].I = _stack[_sp-1].I != b ? -1 : 0; break; }
@@ -259,6 +262,15 @@ namespace UBasic {
                         if (fn.HasRet) Push(r);
                         break;
                     }
+
+                    // Re-executes itself until the host reports the sound
+                    // finished, so blocking needs no extra VM state at all.
+                    case Op.AwaitSound:
+                        if (Sound.IsBusy) {
+                            _pc = pc - 1;
+                            return RunState.Waiting;
+                        }
+                        break;
 
                     case Op.Wait:
                         _pc = pc;

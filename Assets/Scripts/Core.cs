@@ -29,14 +29,14 @@ namespace UBasic {
         AddI, SubI, MulI, DivI, IDiv, ModI, NegI, PowI,
         AddF, SubF, MulF, DivF, NegF, PowF,
         Concat,
-        I2F, F2I, I2FUnder,
+        I2F, F2I, I2FUnder, F2IUnder,
         EqI, NeI, LtI, LeI, GtI, GeI,
         EqF, NeF, LtF, LeF, GtF, GeF,
         EqS, NeS, LtS, LeS, GtS, GeS,
         AndI, OrI, XorI, NotI,
         Jmp, JmpF, JmpT,
         Call, Ret, RetVal, CallHost,
-        Pop, Wait, Halt
+        Pop, Wait, AwaitSound, Halt
     }
 
     /// <summary>One instruction. A struct array rather than a packed byte

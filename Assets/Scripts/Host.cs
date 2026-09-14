@@ -191,6 +191,9 @@ namespace UBasic {
             Proc("__printi",  new[]{I},         (vm,a) => { vm.Scr.Write(Screen.FormatInt(a[0].I)); return NoRet(); });
             Proc("__printnl", none,             (vm,a) => { vm.Scr.NewLine(); return NoRet(); });
             Proc("__printtab",none,             (vm,a) => { vm.Scr.WriteTab(); return NoRet(); });
+            Proc("__sound",   new[]{F,F},       (vm,a) => { vm.Sound.Sound(a[0].F, a[1].F); return NoRet(); });
+            Proc("__beep",    none,             (vm,a) => { vm.Sound.Beep(); return NoRet(); });
+            Proc("__play",    new[]{S},         (vm,a) => { vm.Sound.Play(vm.Strings.Get(a[0].S)); return NoRet(); });
             Proc("__randomize", new[]{F},       (vm,a) => { vm.Rng = new Random((int)a[0].F); return NoRet(); });
         }
 

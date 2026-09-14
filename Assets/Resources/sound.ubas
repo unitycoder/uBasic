@@ -1,0 +1,41 @@
+' Sound demo -- BEEP, SOUND, PLAY, and MB background music.
+
+SCREEN 320, 200
+CLS 1
+COLOR 15, 1
+LOCATE 1, 2 : PRINT "uBasic sound demo"
+
+COLOR 14, 1
+LOCATE 3, 2 : PRINT "BEEP"
+BEEP
+
+LOCATE 4, 2 : PRINT "SOUND sweep 220..880"
+DIM f%
+FOR f% = 220 TO 880 STEP 110
+  SOUND f%, 3
+NEXT f%
+
+LOCATE 5, 2 : PRINT "SOUND 32000 = 1s silent delay"
+SOUND 32000, 18.2
+
+LOCATE 6, 2 : PRINT "PLAY two-octave scale"
+PLAY "T140 O3 L8 CDEFGAB>CDEFGAB>C"
+
+' MB queues the music and returns immediately, so the program keeps
+' running and drawing while it plays.
+LOCATE 7, 2 : PRINT "MB: music under animation"
+PLAY "MB T120 O4 L8 MS EEG>C<GE FFA>D<AF EEG>C<GE L4 C"
+
+DIM t%
+FOR t% = 0 TO 120
+  CLS 1
+  COLOR 15, 1
+  LOCATE 2, 2
+  PRINT "background music, foreground animation"
+  CIRCLE (160 + CINT(SIN(t% / 8.0) * 110), 120), 12, 9 + (t% / 20) MOD 6, F
+  WAIT
+NEXT t%
+
+COLOR 15, 1
+LOCATE 20, 2 : PRINT "done"
+END
