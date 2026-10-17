@@ -10,8 +10,10 @@ namespace Unitycoder.UBasic.EditorTools {
             UBasicRunner r = (UBasicRunner)target;
 
             EditorGUILayout.Space();
-            if (GUILayout.Button("Recompile && Restart", GUILayout.Height(26)))
+            if (GUILayout.Button("Recompile && Restart", GUILayout.Height(26))) {
+                r.ReloadSource();
                 r.Restart();
+            }
 
             if (r.IsFaulted && !string.IsNullOrEmpty(r.FaultMessage))
                 EditorGUILayout.HelpBox(r.FaultMessage, MessageType.Error);

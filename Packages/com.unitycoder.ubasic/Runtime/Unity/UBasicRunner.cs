@@ -1,5 +1,8 @@
 using System;
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace Unitycoder.UBasic {
 
@@ -15,6 +18,8 @@ namespace Unitycoder.UBasic {
 
         [Header("Program")]
         public TextAsset SourceFile;
+        [Tooltip("When enabled in Play Mode, source edits trigger automatic reload/recompile.")]
+        public bool AutoReloadInEditor = true;
         [TextArea(8, 30)]
         public string Source =
             "SCREEN 320, 200\n" +
@@ -74,6 +79,7 @@ namespace Unitycoder.UBasic {
         private bool _frameRateApplied;
         private int _previousTargetFrameRate;
         private int _previousVSyncCount;
+        private string _lastCompiledSource = string.Empty;
 
         void OnEnable() {
             ApplyFrameRateLimit();
@@ -81,6 +87,10 @@ namespace Unitycoder.UBasic {
         }
 
         void Update() {
+#if UNITY_EDITOR
+            if (Application.isPlaying && AutoReloadInEditor && HasSourceChanged())
+                Restart();
+#endif
             if (_vm == null || IsFaulted) return;
 
             _input.Poll();
@@ -128,7 +138,9 @@ namespace Unitycoder.UBasic {
             _blockedFor = 0f;
             _warnedBlocked = false;
 
-            string src = SourceFile != null ? SourceFile.text : Source;
+            ReloadSource();
+            string src = GetCurrentSource();
+            _lastCompiledSource = src ?? string.Empty;
             try {
                 _chunk = Compiler.Compile(src);
             } catch (UBasicError e) {
@@ -155,6 +167,25 @@ namespace Unitycoder.UBasic {
 
             EnsureTexture();
             Upload();
+        }
+
+        private string GetCurrentSource() {
+            return SourceFile != null ? SourceFile.text : Source;
+        }
+
+        private bool HasSourceChanged() {
+            return !string.Equals(GetCurrentSource() ?? string.Empty, _lastCompiledSource, StringComparison.Ordinal);
+        }
+
+        public void ReloadSource() {
+#if UNITY_EDITOR
+            if (SourceFile != null) {
+                string path = AssetDatabase.GetAssetPath(SourceFile);
+                if (!string.IsNullOrEmpty(path))
+                    AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+                Source = SourceFile.text;
+            }
+#endif
         }
 
         private void EnsureTexture() {
