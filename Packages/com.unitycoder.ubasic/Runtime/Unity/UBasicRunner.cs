@@ -53,6 +53,10 @@ namespace Unitycoder.UBasic {
         public int GcThreshold = 512;
         public bool RestartOnEnable = true;
 
+        [Header("FPS")]
+        [Tooltip("Lock the Unity player to this frame rate. Use -1 to follow the platform default.")]
+        public int TargetFrameRate = -1;
+
         public Texture2D Texture { get; private set; }
         public bool IsFaulted { get; private set; }
         public string FaultMessage { get; private set; }
@@ -67,8 +71,12 @@ namespace Unitycoder.UBasic {
         private bool _reportedOverrun;
         private float _blockedFor;
         private bool _warnedBlocked;
+        private bool _frameRateApplied;
+        private int _previousTargetFrameRate;
+        private int _previousVSyncCount;
 
         void OnEnable() {
+            ApplyFrameRateLimit();
             if (RestartOnEnable || _vm == null) Restart();
         }
 
@@ -113,6 +121,7 @@ namespace Unitycoder.UBasic {
         /// <summary>Recompile and reset. Safe to call at runtime -- this is the
         /// hot-reload hook: swap Source and call Restart.</summary>
         public void Restart() {
+            ApplyFrameRateLimit();
             IsFaulted = false;
             FaultMessage = null;
             _reportedOverrun = false;
@@ -169,6 +178,24 @@ namespace Unitycoder.UBasic {
             }
         }
 
+        private void ApplyFrameRateLimit() {
+            if (!Application.isPlaying) return;
+
+            if (TargetFrameRate > 0) {
+                if (!_frameRateApplied) {
+                    _previousTargetFrameRate = Application.targetFrameRate;
+                    _previousVSyncCount = QualitySettings.vSyncCount;
+                    _frameRateApplied = true;
+                }
+                QualitySettings.vSyncCount = 0;
+                Application.targetFrameRate = TargetFrameRate;
+            } else if (_frameRateApplied) {
+                Application.targetFrameRate = _previousTargetFrameRate;
+                QualitySettings.vSyncCount = _previousVSyncCount;
+                _frameRateApplied = false;
+            }
+        }
+
         private void Upload() {
             if (_scr == null) return;
             EnsureTexture();
@@ -219,9 +246,11 @@ namespace Unitycoder.UBasic {
 
         void OnDisable() {
             if (_audio != null) _audio.StopAll();
+            ApplyFrameRateLimit();
         }
 
         void OnDestroy() {
+            ApplyFrameRateLimit();
             if (_audio != null) { _audio.Dispose(); _audio = null; }
             if (Texture != null) {
                 if (Application.isPlaying) Destroy(Texture); else DestroyImmediate(Texture);

@@ -270,6 +270,7 @@ MonoBehaviour:
   InstructionBudget: 200000
   GcThreshold: 512
   RestartOnEnable: 1
+  TargetFrameRate: 24
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
