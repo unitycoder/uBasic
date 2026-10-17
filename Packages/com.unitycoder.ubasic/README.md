@@ -15,7 +15,7 @@ not support, so sound works there too.
 Package Manager → **+** → *Install package from git URL…*
 
 ```
-https://github.com/unitycoder/ubasic.git
+https://github.com/unitycoder/uBasic.git?path=/Packages/com.unitycoder.ubasic
 ```
 
 Or add it to `Packages/manifest.json` directly:
@@ -23,7 +23,7 @@ Or add it to `Packages/manifest.json` directly:
 ```json
 {
   "dependencies": {
-    "com.unitycoder.ubasic": "https://github.com/unitycoder/ubasic.git"
+    "com.unitycoder.ubasic": "https://github.com/unitycoder/uBasic.git?path=/Packages/com.unitycoder.ubasic"
   }
 }
 ```

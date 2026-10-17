@@ -1,29 +1,64 @@
-<img src="https://img.shields.io/badge/VibeCoded-100%25-green" alt="AI Generated Content"/>
-
 # uBasic
 
-<img width="678" height="423" alt="image" src="https://github.com/user-attachments/assets/3fc89591-50cb-44f6-a36e-be08bc6d67bb" />
-
 A QBasic-shaped scripting language for Unity, with a palette-indexed texture as
-its screen. Lexer, bytecode compiler and VM in ~1700 lines of engine-free C#,
-plus a ~280-line Unity layer.
+its screen. Lexer, bytecode compiler and VM in ~1800 lines of engine-free C#,
+plus a ~300-line Unity layer.
 
 Nothing here uses `Reflection.Emit`, dynamic assembly loading, or runtime
 reflection, so it works unchanged under IL2CPP — iOS, consoles and WebGL
 included — and there is nothing for the managed linker to strip out from under
-you.
+you. The audio path deliberately avoids `OnAudioFilterRead`, which WebGL does
+not support, so sound works there too.
 
-## Setup
+## Install
 
-1. Copy `Runtime/` and `Unity/` into your project (`Unity/Editor/` must live
-   under a folder named `Editor`).
-2. Add a `UBasicRunner` component to an empty GameObject.
-3. Press play. The default program in the inspector draws a bouncing circle.
-4. Drop a `.ubas` file into the project and assign it to `SourceFile` — the
-   importer compile-checks it on every save and reports errors with line
-   numbers, so you catch mistakes without entering play mode.
+Package Manager → **+** → *Install package from git URL…*
 
-`Restart()` recompiles and resets at runtime. That is the hot-reload hook: swap
+```
+https://github.com/unitycoder/uBasic.git?path=/Packages/com.unitycoder.ubasic
+```
+
+Or add it to `Packages/manifest.json` directly:
+
+```json
+{
+  "dependencies": {
+    "com.unitycoder.ubasic": "https://github.com/unitycoder/uBasic.git?path=/Packages/com.unitycoder.ubasic"
+  }
+}
+```
+
+Pin a release by appending a tag: `…/ubasic.git#v0.2.0`.
+
+Then: add a **uBasic Runner** component to an empty GameObject and press play.
+The default program in the inspector draws a bouncing circle.
+
+Package Manager → uBasic → **Samples** → *Demo Programs* imports four `.ubas`
+programs to start from.
+
+## Package layout
+
+| Path | Assembly | What it is |
+|------|----------|------------|
+| `Runtime/` | `Unitycoder.UBasic` | The language. **`noEngineReferences`** — a `using UnityEngine` here is a compile error. |
+| `Runtime/Unity/` | `Unitycoder.UBasic.Unity` | `MonoBehaviour`, texture upload, input, audio. |
+| `Editor/` | `Unitycoder.UBasic.Editor` | `.ubas` importer, custom inspector. |
+| `Tests/Editor/` | `Unitycoder.UBasic.Tests` | 20 tests, editor-only. |
+| `Samples~/Demos/` | — | Example programs, imported on demand. |
+| `Tools~/` | — | Headless harness, font generator. Hidden from Unity. |
+
+That split is load-bearing, not cosmetic. An earlier bug came from timing logic
+living in the Unity-only file where it could not be run headlessly; it passed a
+full test run and still blocked every program on its first `SOUND`. The asmdef
+now makes that drift impossible to compile.
+
+## Writing programs
+
+Drop a `.ubas` file anywhere in your project and assign it to `SourceFile`. The
+importer compile-checks it on every save and reports errors with line numbers
+on the asset's inspector, so mistakes surface without entering play mode.
+
+`Restart()` recompiles and resets at runtime — that is the hot-reload hook: swap
 `Source` or the `TextAsset` and call it.
 
 ## Language
@@ -106,9 +141,9 @@ CALL DrawBox(10, 10, 14)    ' or with CALL
 d! = Dist(0, 0, 3, 4)       ' sigil optional at the call site when unambiguous
 ```
 
-Assigning to the function's own name sets the return value. Arguments are passed
-by value. Recursion works; runaway recursion faults at 512 frames rather than
-taking the editor down.
+Assigning to the function's own name sets the return value; the same name
+*followed by `(`* is a recursive call. Arguments are passed by value. Runaway
+recursion faults at 512 frames rather than taking the editor down.
 
 ### Graphics
 
@@ -135,7 +170,7 @@ Everything clips silently — plotting off-screen is a no-op, never an error.
 
 Text is blitted from a built-in 6×8 bitmap font, so a character cell is 6×8
 pixels and a 320×200 screen is 53×25 characters. There is no font asset and no
-`TextMeshPro` dependency.
+TextMeshPro dependency.
 
 ```basic
 COLOR 14          ' foreground only
@@ -271,39 +306,17 @@ arrays are preallocated `Slot[]`.
 reference containers, every live string is reachable from exactly three places —
 the pinned constant pool, globals typed `Str`, and active frames' locals typed
 `Str`. Collection only runs at a statement boundary with an empty operand stack,
-so the root set is exact: no conservative scanning, no write barriers. In the
-bouncing-balls sample, 600 frames of string building stays bounded at a few
-hundred live strings instead of leaking ~3000.
+so the root set is exact: no conservative scanning, no write barriers.
 
-**Audio without a filter callback.** There is no `OnAudioFilterRead` anywhere,
-which is what makes sound work on WebGL — Unity does not support the filter
-callback there. Instead each cached `AudioClip` holds a whole number of cycles of
-a square wave and is played **looping**, so a clip encodes a *frequency* and
-nothing else. Duration is decided by when playback stops. One clip therefore
-serves every note length, and the entire chromatic range QBasic can address is
-about 84 clips of roughly 8 KB — generated up front by `PrewarmNotes` so no note
-ever costs an allocation mid-game.
-
-Using several cycles per clip rather than one is what keeps tuning honest.
-Rounding a single cycle to whole samples puts A4 about 4 cents sharp; a 4096-
-sample chunk holds every note in the scale inside a quarter of a cent.
-
-Notes are placed on `AudioSettings.dspTime` across a small pool of
-`AudioSource`s, so note timing is independent of frame rate. Set
-`ScheduledAudio` false to fall back to plain `Play`/`Stop` if a platform
-mishandles `PlayScheduled`.
-
-All of that timing lives in `SoundScheduler`, which is engine-free and takes its
-clock as a parameter — `UnityAudioAdapter` only creates clips and calls
-`AudioSource`. That split exists because it was learned the hard way: the
-scheduling logic originally sat inside the Unity adapter where it could not be
-run headlessly, and a bug that reported "busy" forever while idle survived a
-full test pass and blocked the program permanently on its first `SOUND`. Both
-the adapter and the test harness now drive the same class, and
-`--selftest` covers the idle case directly.
-
-If a program ever does stall at a `SOUND` or `PLAY`, the runner logs a warning
-after ten seconds rather than hanging silently.
+**Audio without a filter callback.** Each cached `AudioClip` holds a whole number
+of cycles of a square wave and is played **looping**, so a clip encodes a
+*frequency* and nothing else. Duration is decided by when playback stops. One
+clip therefore serves every note length, and the whole chromatic range QBasic
+can address is about 84 clips of roughly 8 KB — generated up front by
+`PrewarmNotes`. Using 4096-sample chunks rather than one cycle keeps every note
+inside a quarter of a cent; single-cycle rounding would be about 4 cents sharp
+at A4, audible in a melody. Notes are placed on `AudioSettings.dspTime` across a
+small pool of `AudioSource`s, so timing is independent of frame rate.
 
 **Host binding.** `Host.cs` is a flat table of fixed-arity signatures with
 declared parameter types. The compiler resolves the overload and splices in any
@@ -318,40 +331,49 @@ Deliberate, and worth keeping that way:
   Use a named `SUB` instead.
 - **Arrays are global and fixed-size.** Bounds must be compile-time constants;
   1-D and 2-D only. No `REDIM`, no local arrays.
-- **No `TYPE` records** yet. This is the first thing I'd add, and it fits the
+- **No `TYPE` records** yet. This is the first thing to add, and it fits the
   slot model cleanly (a record is a contiguous run of slots).
 - **No `GOSUB`, no line numbers.** Labelled `GOTO` within a procedure only.
 - **Arguments are by value.** No QBasic `BYREF` semantics.
 - **One program per runner.** No modules or `#include`.
-- **Sound is monophonic**, one square-wave voice, as on a PC speaker. The
-  blocking behaviour of `SOUND` and the one-note-at-a-time rule are the same
-  design decision; breaking one breaks the other.
-- **No `PLAY` `VARPTR$` substring execution.** It would drag a pointer concept
-  into a language that deliberately has none.
-- **WebGL needs a user gesture** before any audio plays — a browser rule, not a
-  uBasic one. Have the player click something before the first `PLAY`.
+- **Sound is monophonic**, one square-wave voice, as on a PC speaker.
+- **`KEY`/`MOUSE` need the legacy Input Manager.** Set *Project Settings →
+  Player → Active Input Handling* to **Both**, or swap in your own `IInput`.
+- **WebGL needs a user gesture** before any audio plays — a browser rule. Have
+  the player click something before the first `PLAY`.
 
-## Headless testing
+## Development
 
-`Tools/TestHost.cs` compiles and runs a program outside Unity and writes the
-framebuffer to a PNG — the whole language is testable in CI without the editor.
+The whole language is engine-free, so it builds and runs under Mono with no
+Unity installation:
 
 ```bash
-mcs -out:ubasic.exe Runtime/*.cs Tools/TestHost.cs
-mono ubasic.exe Samples/smoke.ubas out.png          # static, runs to END
-mono ubasic.exe Samples/balls.ubas out.png 600      # 600 frames of animation
-mono ubasic.exe Samples/sound.ubas out.png 1200     # also writes out.wav
-mono ubasic.exe --selftest                          # scheduler regression tests
+# the package's own Unity tests, headlessly
+mcs -out:tests.exe Runtime/*.cs 'Tools~/NUnitShim.cs' 'Tools~/TestRunner.cs' Tests/Editor/*.cs
+mono tests.exe
+
+# the uBasic harness: runs a program, writes a PNG (and a WAV if it makes sound)
+mcs -out:ubasic.exe Runtime/*.cs 'Tools~/TestHost.cs'
+mono ubasic.exe --selftest
+mono ubasic.exe 'Samples~/Demos/smoke.ubas' out.png
+mono ubasic.exe 'Samples~/Demos/sound.ubas' out.png 1200   # also writes out.wav
 ```
 
-Programs that make sound also emit a 16-bit WAV alongside the PNG. The harness
-stands in for the Unity audio adapter, laying queued notes on a virtual timeline
-and reporting busy while it runs ahead of the frame clock — so the blocking path
-and the MML parser are exercised for real, and note frequencies are verifiable
-in CI without the editor.
+To see the tests inside Unity's Test Runner when uBasic is installed as a
+package, add it to `testables` in your project's `Packages/manifest.json`:
 
-`Tools/font_gen.py` regenerates `Runtime/Font6x8.cs` from readable ASCII art and
-emits a preview sheet — edit the glyph art there, not the hex.
+```json
+{ "testables": [ "com.unitycoder.ubasic" ] }
+```
+
+`Tools~/NUnitShim.cs` implements just the slice of NUnit the tests use, so the
+same `Tests/Editor/*.cs` files run both in the Unity Test Runner and in CI.
+Compiling `Runtime/*.cs` without `Runtime/Unity/` is itself the engine-free
+check, and CI does exactly that.
+
+`Tools~/font_gen.py` regenerates `Runtime/Font6x8.cs` from readable ASCII art
+and emits a preview sheet — edit the glyph art there, not the hex. CI verifies
+the checked-in file matches what the generator produces.
 
 ## Samples
 
@@ -361,3 +383,7 @@ emits a preview sheet — edit the glyph art there, not the hex.
 | `balls.ubas` | `WAIT`-driven animation, arrays of floats, string building under GC |
 | `batball.ubas` | `KEY` input, block `IF`, `EXIT DO`, a full little game loop |
 | `sound.ubas` | `BEEP`, `SOUND` sweep, the silent-delay idiom, MML scale, `MB` music under animation |
+
+## Licence
+
+MIT — see [LICENSE.md](LICENSE.md).
