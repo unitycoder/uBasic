@@ -1,0 +1,19 @@
+{
+    "name": "Unitycoder.UBasic.Editor",
+    "rootNamespace": "Unitycoder.UBasic.EditorTools",
+    "references": [
+        "Unitycoder.UBasic",
+        "Unitycoder.UBasic.Unity"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

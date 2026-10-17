@@ -220,7 +220,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 887238106}
-  - component: {fileID: 887238105}
+  - component: {fileID: 887238107}
   m_Layer: 0
   m_Name: '#uBasic'
   m_TagString: Untagged
@@ -228,34 +228,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &887238105
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 887238104}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: bbc7f674d2b02654fb4314bc6a3eb005, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::UBasic.UBasicRunner
-  SourceFile: {fileID: 9027929339269108002, guid: 4bf7d222b25b8924d9a09e34fc14aea4, type: 3}
-  Source: "SCREEN 320, 200\nDIM t%\nDO\n  CLS 1\n  CIRCLE (160 + CINT(SIN(t% / 12.0)
-    * 90), 100), 20, 14, F\n  LOCATE 0, 0\n  PRINT \"hello from uBasic\"\n  t% =
-    t% + 1\n  WAIT\nLOOP\n"
-  ScreenWidth: 320
-  ScreenHeight: 200
-  DisplayMode: 0
-  PointFilter: 1
-  EnableSound: 1
-  Volume: 0.28
-  PrewarmNotes: 1
-  ScheduledAudio: 1
-  InstructionBudget: 200000
-  GcThreshold: 512
-  RestartOnEnable: 1
-  TargetFps: 30
 --- !u!4 &887238106
 Transform:
   m_ObjectHideFlags: 0
@@ -271,6 +243,33 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &887238107
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 887238104}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f87ab0dcfe56e880e4f423f1318c696f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unitycoder.UBasic.Unity::Unitycoder.UBasic.UBasicRunner
+  SourceFile: {fileID: 0}
+  Source: "SCREEN 320, 200\nDIM t%\nDO\n  CLS 1\n  CIRCLE (160 + CINT(SIN(t% / 12.0)
+    * 90), 100), 20, 14, F\n  LOCATE 0, 0\n  PRINT \"hello from uBasic\"\n  t% =
+    t% + 1\n  WAIT\nLOOP\n"
+  ScreenWidth: 320
+  ScreenHeight: 200
+  DisplayMode: 0
+  PointFilter: 1
+  EnableSound: 1
+  Volume: 0.28
+  PrewarmNotes: 1
+  ScheduledAudio: 1
+  InstructionBudget: 200000
+  GcThreshold: 512
+  RestartOnEnable: 1
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

@@ -1,0 +1,55 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  headless:
+    name: Mono (no Unity required)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Mono
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq mono-mcs mono-runtime
+
+      # Compiling Runtime/*.cs WITHOUT Runtime/Unity proves the core language
+      # has no engine dependency. If anyone adds a `using UnityEngine` to the
+      # core, this step fails -- matching the asmdef's noEngineReferences.
+      - name: Build core + test runner
+        run: |
+          mcs -out:tests.exe -langversion:6 \
+              Runtime/*.cs 'Tools~/NUnitShim.cs' 'Tools~/TestRunner.cs' Tests/Editor/*.cs
+
+      - name: Run the Unity test suite headlessly
+        run: mono tests.exe
+
+      - name: Build the uBasic harness
+        run: mcs -out:ubasic.exe -langversion:6 Runtime/*.cs 'Tools~/TestHost.cs'
+
+      - name: Scheduler and compiler self-tests
+        run: mono ubasic.exe --selftest
+
+      - name: Run every sample program
+        run: |
+          mkdir -p artifacts
+          for f in Samples~/Demos/*.ubas; do
+            name=$(basename "$f" .ubas)
+            echo "--- $name"
+            mono ubasic.exe "$f" "artifacts/$name.png" 1200
+          done
+
+      - name: Check the font generator is in sync
+        run: |
+          python3 'Tools~/font_gen.py' /tmp/fontcheck
+          diff -q Runtime/Font6x8.cs /tmp/fontcheck/Font6x8.cs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sample-output
+          path: artifacts/

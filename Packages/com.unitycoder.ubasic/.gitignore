@@ -1,0 +1,26 @@
+# Build output from the headless harness in Tools~
+*.exe
+*.dll
+*.mdb
+*.pdb
+out.png
+out.wav
+/build/
+
+# Generated preview from Tools~/font_gen.py
+Tools~/font_preview.png
+
+# Unity (only relevant if this repo is opened inside a project)
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Ll]ogs/
+/[Uu]serSettings/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/

@@ -34,6 +34,12 @@
         "com.unity.modules.imgui": "1.0.0"
       }
     },
+    "com.unitycoder.ubasic": {
+      "version": "file:com.unitycoder.ubasic",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
     "com.unity.modules.accessibility": {
       "version": "1.0.0",
       "depth": 0,

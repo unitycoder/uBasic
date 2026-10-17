@@ -1,0 +1,31 @@
+{
+  "name": "com.unitycoder.ubasic",
+  "version": "0.2.0",
+  "displayName": "uBasic",
+  "description": "A QBasic-style scripting language for Unity, with a palette-indexed texture as its screen. Bytecode VM, built-in 6x8 bitmap font, SOUND/PLAY audio via pre-rendered AudioClips. Zero reflection and no runtime codegen, so it works under IL2CPP on iOS, consoles and WebGL.",
+  "unity": "2021.3",
+  "keywords": [
+    "basic",
+    "qbasic",
+    "scripting",
+    "interpreter",
+    "bytecode",
+    "retro",
+    "modding",
+    "pixel"
+  ],
+  "author": {
+    "name": "mgear",
+    "url": "https://unitycoder.com"
+  },
+  "documentationUrl": "https://github.com/unitycoder/ubasic#readme",
+  "changelogUrl": "https://github.com/unitycoder/ubasic/blob/main/CHANGELOG.md",
+  "licensesUrl": "https://github.com/unitycoder/ubasic/blob/main/LICENSE.md",
+  "samples": [
+    {
+      "displayName": "Demo Programs",
+      "description": "Four .ubas programs: a language smoke test, WAIT-driven animation, a playable bat-and-ball game, and a sound/music demo.",
+      "path": "Samples~/Demos"
+    }
+  ]
+}
