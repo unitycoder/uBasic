@@ -80,6 +80,10 @@ namespace Unitycoder.UBasic {
         private int _previousTargetFrameRate;
         private int _previousVSyncCount;
         private string _lastCompiledSource = string.Empty;
+#if UNITY_EDITOR
+        private string _lastSourceAssetPath = string.Empty;
+        private long _lastSourceAssetWriteTicks = -1;
+#endif
 
         void OnEnable() {
             ApplyFrameRateLimit();
@@ -173,9 +177,44 @@ namespace Unitycoder.UBasic {
             return SourceFile != null ? SourceFile.text : Source;
         }
 
+#if UNITY_EDITOR
+        private void CaptureSourceSnapshot() {
+            if (SourceFile == null) {
+                _lastSourceAssetPath = string.Empty;
+                _lastSourceAssetWriteTicks = -1;
+                return;
+            }
+
+            string path = AssetDatabase.GetAssetPath(SourceFile);
+            _lastSourceAssetPath = path ?? string.Empty;
+            if (!string.IsNullOrEmpty(path)) {
+                string fullPath = System.IO.Path.GetFullPath(path);
+                _lastSourceAssetWriteTicks = System.IO.File.Exists(fullPath)
+                    ? System.IO.File.GetLastWriteTimeUtc(fullPath).Ticks
+                    : -1;
+            } else {
+                _lastSourceAssetWriteTicks = -1;
+            }
+        }
+
         private bool HasSourceChanged() {
+            if (SourceFile != null) {
+                string path = AssetDatabase.GetAssetPath(SourceFile) ?? string.Empty;
+                string fullPath = string.IsNullOrEmpty(path) ? string.Empty : System.IO.Path.GetFullPath(path);
+                long writeTicks = !string.IsNullOrEmpty(fullPath) && System.IO.File.Exists(fullPath)
+                    ? System.IO.File.GetLastWriteTimeUtc(fullPath).Ticks
+                    : -1;
+                return !string.Equals(path, _lastSourceAssetPath, StringComparison.Ordinal) ||
+                    writeTicks != _lastSourceAssetWriteTicks;
+            }
+
             return !string.Equals(GetCurrentSource() ?? string.Empty, _lastCompiledSource, StringComparison.Ordinal);
         }
+#else
+        private bool HasSourceChanged() {
+            return false;
+        }
+#endif
 
         public void ReloadSource() {
 #if UNITY_EDITOR
@@ -185,6 +224,8 @@ namespace Unitycoder.UBasic {
                     AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
                 Source = SourceFile.text;
             }
+
+            CaptureSourceSnapshot();
 #endif
         }
 

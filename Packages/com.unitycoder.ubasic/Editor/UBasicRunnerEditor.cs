@@ -11,7 +11,6 @@ namespace Unitycoder.UBasic.EditorTools {
 
             EditorGUILayout.Space();
             if (GUILayout.Button("Recompile && Restart", GUILayout.Height(26))) {
-                r.ReloadSource();
                 r.Restart();
             }
 
