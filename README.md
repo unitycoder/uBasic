@@ -36,6 +36,10 @@ The default program in the inspector draws a bouncing circle.
 Package Manager → uBasic → **Samples** → *Demo Programs* imports four `.ubas`
 programs to start from.
 
+### DOCS
+
+https://github.com/unitycoder/uBasic/wiki/uBasic-API-Reference
+
 ## Syntax Highlighting for Visual Studio and VSCode
 
 https://github.com/unitycoder/uBasicSyntaxHighlight
