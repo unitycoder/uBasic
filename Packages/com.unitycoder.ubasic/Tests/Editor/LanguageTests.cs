@@ -84,6 +84,25 @@ namespace Unitycoder.UBasic.Tests {
         }
 
         [Test]
+        public void SingleLineIfElseAcceptsPrintAndBareCall() {
+            // Regression: PRINT and a bare SUB call both consume a list up to
+            // end of line, so they swallowed the ELSE and failed to compile.
+            Screen s = Run(
+                "SCREEN 64, 32\nCLS 0\nDIM n%\n" +
+                "IF 1 = 2 THEN n% = 1 ELSE n% = 2\n" +
+                "IF n% = 2 THEN PSET (0, 0), 15 ELSE PSET (0, 0), 4\nEND\n");
+            Assert.AreEqual(15, s.Point(0, 0), "ELSE must terminate the THEN statement");
+
+            Assert.DoesNotThrow(() => Compiler.Compile(
+                "IF 1 = 1 THEN PRINT \"a\" ELSE PRINT \"b\"\nEND\n"),
+                "PRINT must stop at ELSE");
+            Assert.DoesNotThrow(() => Compiler.Compile(
+                "IF 1 = 1 THEN Note 1 ELSE Note 2\nEND\n" +
+                "SUB Note(k%)\n  PRINT k%\nEND SUB\n"),
+                "a bare SUB call must stop at ELSE");
+        }
+
+        [Test]
         public void FunctionsRecurseAndReturn() {
             Screen s = Run(
                 "SCREEN 64, 32\nCLS 0\n" +

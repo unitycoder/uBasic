@@ -80,8 +80,12 @@ namespace Unitycoder.UBasic {
         private void SkipTerminators() {
             while (Cur.Kind == T.EOL || Cur.Kind == T.Colon) _p++;
         }
+        /// <summary>A statement ends at end of line, a colon, end of file --
+        /// or at ELSE, which belongs to the enclosing single-line IF rather
+        /// than to the statement that just finished.</summary>
         private void EndOfStatement() {
             if (Cur.Kind == T.EOL || Cur.Kind == T.Colon || Cur.Kind == T.EOF) return;
+            if (IsKw("ELSE")) return;
             throw Err("unexpected token after statement");
         }
 
@@ -836,7 +840,8 @@ namespace Unitycoder.UBasic {
                     }
                 }
                 Expect(T.RParen, "')'");
-            } else if (Cur.Kind != T.EOL && Cur.Kind != T.Colon && Cur.Kind != T.EOF) {
+            } else if (Cur.Kind != T.EOL && Cur.Kind != T.Colon && Cur.Kind != T.EOF
+                       && !IsKw("ELSE")) {
                 while (true) {
                     if (argc >= fi.ParamCount)
                         throw new UBasicError("too many arguments to " + nameTok.Raw, line);
@@ -999,7 +1004,10 @@ namespace Unitycoder.UBasic {
             _p++;
             bool suppressNewline = false;
 
-            while (Cur.Kind != T.EOL && Cur.Kind != T.Colon && Cur.Kind != T.EOF) {
+            // Stops at ELSE so that IF c THEN PRINT "a" ELSE PRINT "b" works:
+            // without this the ELSE is parsed as another thing to print.
+            while (Cur.Kind != T.EOL && Cur.Kind != T.Colon && Cur.Kind != T.EOF
+                   && !IsKw("ELSE")) {
                 if (Accept(T.Semi)) { suppressNewline = true; continue; }
                 if (Accept(T.Comma)) { EmitHost("__printtab", 0, line); suppressNewline = true; continue; }
 

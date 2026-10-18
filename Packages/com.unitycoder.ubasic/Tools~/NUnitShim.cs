@@ -102,6 +102,15 @@ namespace NUnit.Framework {
                 "expected " + typeof(T).Name + " but nothing was thrown"));
         }
 
+        public static void DoesNotThrow(TestDelegate code, string message = null) {
+            try {
+                code();
+            } catch (Exception e) {
+                throw new AssertionException(With(message,
+                    "expected no exception but got " + e.GetType().Name + ": " + e.Message));
+            }
+        }
+
         public static void Fail(string message) {
             throw new AssertionException(message ?? "failed");
         }
