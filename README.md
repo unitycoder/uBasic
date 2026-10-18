@@ -397,6 +397,10 @@ the checked-in file matches what the generator produces.
 | `batball.ubas` | `KEY` input, block `IF`, `EXIT DO`, a full little game loop |
 | `sound.ubas` | `BEEP`, `SOUND` sweep, the silent-delay idiom, MML scale, `MB` music under animation |
 
+### Made With uBasic
+
+- ludum dare entry: https://ldjam.com/events/ludum-dare/60/snake-temple (.ubas source code available in the link)
+
 ## Licence
 
 MIT — see [LICENSE.md](LICENSE.md).
