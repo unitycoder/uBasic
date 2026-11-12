@@ -48,10 +48,10 @@ https://unitycoder-com.itch.io/ubasic-webgl-playground
 
 https://github.com/unitycoder/uBasicSyntaxHighlight
 
-## Paint Tool
+## Tools
 
-Can use this to draw images for uBasic
-https://tools.unitycoder.com/uBasic-Paint/
+- Draw images for uBasic https://tools.unitycoder.com/uBasic-Paint/
+- Convert 3D models for uBasic https://tools.unitycoder.com/uBasic3DModelImporter/
 
 ## Package layout
 
