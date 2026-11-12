@@ -44,6 +44,10 @@ https://github.com/unitycoder/uBasic/wiki/uBasic-API-Reference
 
 https://unitycoder-com.itch.io/ubasic-webgl-playground
 
+### Example Scripts
+
+https://github.com/unitycoder/uBasic/wiki/Example-Scripts
+
 ## Syntax Highlighting for Visual Studio and VSCode
 
 https://github.com/unitycoder/uBasicSyntaxHighlight
