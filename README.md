@@ -56,6 +56,8 @@ https://github.com/unitycoder/uBasicSyntaxHighlight
 
 - Draw images for uBasic https://tools.unitycoder.com/uBasic-Paint/
 - Convert 3D models for uBasic https://tools.unitycoder.com/uBasic3DModelImporter/
+- SoundFX Generator for uBasic https://tools.unitycoder.com/uBasicBeepForge/
+- Music Tracker for uBasic https://tools.unitycoder.com/uBasicMusicTracker/
 
 ## Package layout
 
