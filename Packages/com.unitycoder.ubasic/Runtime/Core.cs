@@ -5,27 +5,39 @@ using System.Runtime.InteropServices;
 namespace Unitycoder.UBasic {
 
     /// <summary>Static type of a variable or expression. uBasic resolves every
-    /// type at compile time, so runtime slots carry no tag.</summary>
-    public enum VType { Int, Single, Str }
+    /// type at compile time, so runtime slots carry no tag.
+    ///
+    /// The five QBasic scalar types map onto three storage classes: INTEGER
+    /// and LONG are both a 32-bit int, SINGLE and DOUBLE are both a 64-bit
+    /// float, and STRING is a heap handle. The distinction between the two
+    /// members of a class only matters at compile time -- it decides variable
+    /// identity (a% and a& are different variables), result types, and how
+    /// PRINT formats a number. Record is a user TYPE, which is laid out as a
+    /// run of scalar slots and never appears on the operand stack.</summary>
+    public enum VType { Int, Single, Str, Long, Double, Record }
 
     /// <summary>8-byte untyped cell. Which field is live is decided by the
     /// compiler, never checked at runtime -- that is what makes the VM fast.</summary>
     [StructLayout(LayoutKind.Explicit, Size = 8)]
     public struct Slot {
-        [FieldOffset(0)] public int I;    // INTEGER, and boolean (-1 / 0)
-        [FieldOffset(0)] public float F;  // SINGLE
+        [FieldOffset(0)] public int I;    // INTEGER / LONG, boolean (-1 / 0), array handle
+        [FieldOffset(0)] public double F; // SINGLE / DOUBLE
         [FieldOffset(0)] public int S;    // STRING handle into StringHeap
 
-        public static Slot FromInt(int v)   { Slot s = new Slot(); s.I = v; return s; }
-        public static Slot FromFloat(float v) { Slot s = new Slot(); s.F = v; return s; }
-        public static Slot FromStr(int h)   { Slot s = new Slot(); s.S = h; return s; }
+        public static Slot FromInt(int v)      { Slot s = new Slot(); s.I = v; return s; }
+        public static Slot FromFloat(double v) { Slot s = new Slot(); s.F = v; return s; }
+        public static Slot FromStr(int h)      { Slot s = new Slot(); s.S = h; return s; }
     }
 
     public enum Op {
         Nop,
         PushI, PushF, PushS,
         LoadG, StoreG, LoadL, StoreL,
-        ArrGet1, ArrSet1, ArrGet2, ArrSet2,
+        /// <summary>Read local A of the procedure that just returned. Its
+        /// frame is gone but its slots are still intact directly above the
+        /// caller's, which is how by-reference arguments are copied back.</summary>
+        LoadRet,
+        ArrNew, ArrFree, ArrLoad, ArrStore, ArrBound,
         AddI, SubI, MulI, DivI, IDiv, ModI, NegI, PowI,
         AddF, SubF, MulF, DivF, NegF, PowF,
         Concat,
@@ -36,7 +48,8 @@ namespace Unitycoder.UBasic {
         AndI, OrI, XorI, NotI,
         Jmp, JmpF, JmpT,
         Call, Ret, RetVal, CallHost,
-        Pop, Wait, AwaitSound, Halt
+        Gosub, Return,
+        Pop, Wait, AwaitSound, AwaitSleep, InputLine, Halt
     }
 
     /// <summary>One instruction. A struct array rather than a packed byte
@@ -53,7 +66,7 @@ namespace Unitycoder.UBasic {
     public class FuncInfo {
         public string Name;
         public int Addr;            // entry point in code
-        public int ParamCount;
+        public int ParamCount;      // in slots: a record parameter takes several
         public int LocalCount;      // includes params and the result slot
         public VType[] LocalTypes;
         public bool IsFunction;     // FUNCTION (returns) vs SUB (does not)
@@ -62,22 +75,42 @@ namespace Unitycoder.UBasic {
         public VType[] ParamTypes;
     }
 
+    /// <summary>Compile-time description of an array: what one element looks
+    /// like. Bounds are not here -- DIM and REDIM evaluate them at runtime.</summary>
     public class ArrayInfo {
         public string Name;
-        public VType Type;
-        public int D0, D1;   // inclusive upper bounds; D1 < 0 means 1-D
-        public int Length;
+        public VType Type;          // element type; Record for a user TYPE
+        public int Stride = 1;      // slots per element
+        public VType[] SlotTypes;   // type of each slot of one element
+        public bool HasStr;         // any string slot -> the GC must scan it
+    }
+
+    /// <summary>A live array.</summary>
+    public class ArrayObj {
+        public Slot[] Data;
+        public int[] Lo;            // lower bound per dimension
+        public int[] Len;           // element count per dimension
+        public int Stride;
+        public ArrayInfo Info;
+        public int Count;           // total elements
     }
 
     /// <summary>A compiled uBasic program.</summary>
     public class Chunk {
         public List<Instr> Code = new List<Instr>();
         public List<string> StringConsts = new List<string>();
+        public List<double> FloatConsts = new List<double>();
         public List<FuncInfo> Funcs = new List<FuncInfo>();
         public List<ArrayInfo> Arrays = new List<ArrayInfo>();
         public List<VType> GlobalTypes = new List<VType>();
         public List<string> GlobalNames = new List<string>();
+        /// <summary>Every DATA item of the program, in source order.</summary>
+        public List<string> Data = new List<string>();
         public int EntryPoint;
+        /// <summary>True when the source was compiled as classic QBasic
+        /// rather than the uBasic dialect. Decides the start-up screen
+        /// (SCREEN 0 text), 1-based LOCATE, and friends.</summary>
+        public bool QBasic;
 
         public int Emit(Op op, int a, int b, int line) {
             Code.Add(new Instr(op, a, b, line));
@@ -90,21 +123,24 @@ namespace Unitycoder.UBasic {
         }
         public int Here { get { return Code.Count; } }
 
-        /// <summary>Insert an instruction mid-stream. Safe only inside an
-        /// expression, which by construction contains no jumps -- the compiler
-        /// uses this to add argument conversions once an overload is resolved.</summary>
-        public void Insert(int at, Op op, int line) {
-            Code.Insert(at, new Instr(op, 0, 0, line));
+        public int AddFloat(double v) {
+            // Small programs repeat the same few constants a lot.
+            int n = FloatConsts.Count;
+            for (int i = n - 1; i >= 0 && i >= n - 16; i--)
+                if (FloatConsts[i].Equals(v)) return i;
+            FloatConsts.Add(v);
+            return n;
         }
     }
 
     /// <summary>String storage with a free list and a precise mark-sweep.
     ///
-    /// uBasic has no closures and no reference containers, so every live string
-    /// is reachable from exactly three places: the string constant pool, global
-    /// slots typed Str, and the locals of active frames typed Str. Collection
-    /// only runs at a statement boundary where the operand stack is empty, so
-    /// the root set is exact -- no conservative scanning, no write barriers.</summary>
+    /// uBasic has no closures, so every live string is reachable from a small
+    /// fixed set of places: the string constant pool, global slots typed Str,
+    /// the locals of active frames typed Str, and string slots of live arrays.
+    /// Collection only runs at a statement boundary where the operand stack is
+    /// empty, so the root set is exact -- no conservative scanning, no write
+    /// barriers.</summary>
     public class StringHeap {
         private string[] _slots = new string[256];
         private bool[] _mark = new bool[256];
@@ -112,12 +148,19 @@ namespace Unitycoder.UBasic {
         private readonly Stack<int> _free = new Stack<int>();
         private int _top;
 
+        public StringHeap() {
+            // Handle 0 is the empty string, so a zero-initialised string
+            // variable reads as "" instead of aliasing whatever came first.
+            AllocPinned("");
+        }
+
         public int Count { get { return _top - _free.Count; } }
         public int Capacity { get { return _slots.Length; } }
 
         public string Get(int h) { return h >= 0 && h < _top ? (_slots[h] ?? "") : ""; }
 
         public int Alloc(string v) {
+            if (v == null || v.Length == 0) return 0;
             int h;
             if (_free.Count > 0) {
                 h = _free.Pop();
@@ -131,7 +174,10 @@ namespace Unitycoder.UBasic {
 
         /// <summary>Constants never move and never die.</summary>
         public int AllocPinned(string v) {
-            int h = Alloc(v);
+            int h;
+            if (_top == _slots.Length) Grow();
+            h = _top++;
+            _slots[h] = v ?? "";
             _pinned[h] = true;
             return h;
         }

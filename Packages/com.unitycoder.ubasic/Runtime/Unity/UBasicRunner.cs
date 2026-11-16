@@ -18,6 +18,11 @@ namespace Unitycoder.UBasic {
 
         [Header("Program")]
         public TextAsset SourceFile;
+        [Tooltip("Auto treats a program as classic QBasic when it uses things only " +
+                 "classic programs do (DECLARE, DEFINT, GOSUB, DATA, INKEY$, INPUT, TYPE, " +
+                 "line numbers) and has no bare WAIT. QBasic programs start in SCREEN 0 " +
+                 "and use 1-based LOCATE.")]
+        public Dialect Dialect = Dialect.Auto;
         [Tooltip("When enabled in Play Mode, source edits trigger automatic reload/recompile.")]
         public bool AutoReloadInEditor = true;
         [TextArea(8, 30)]
@@ -39,6 +44,9 @@ namespace Unitycoder.UBasic {
         public Display DisplayMode = Display.FullscreenGUI;
         [Tooltip("Nearest-neighbour keeps the pixels crisp when upscaled.")]
         public bool PointFilter = true;
+        [Tooltip("Show QBasic SCREEN modes at the 4:3 shape they had on a real monitor. " +
+                 "640x350 and 640x200 have tall pixels, and CIRCLE is only round this way.")]
+        public bool QBasicAspect = true;
 
         [Header("Audio")]
         public bool EnableSound = true;
@@ -51,8 +59,9 @@ namespace Unitycoder.UBasic {
         public bool ScheduledAudio = true;
 
         [Header("Execution")]
-        [Tooltip("Instruction ceiling per frame. A program that blows through " +
-                 "this without hitting WAIT is stopped rather than hanging the editor.")]
+        [Tooltip("Instructions run per frame. A uBasic program should reach WAIT well " +
+                 "inside this. A classic QBasic program has no WAIT and simply uses all of " +
+                 "it every frame, so for those this is the speed of the machine.")]
         public int InstructionBudget = 200000;
         [Tooltip("Collect the string heap once this many strings are live.")]
         public int GcThreshold = 512;
@@ -72,6 +81,7 @@ namespace Unitycoder.UBasic {
         private byte[] _rgba;
         private UnityInputAdapter _input;
         private UnityAudioAdapter _audio;
+        private SoundScheduler _silent;
         private Renderer _renderer;
         private bool _reportedOverrun;
         private float _blockedFor;
@@ -98,8 +108,14 @@ namespace Unitycoder.UBasic {
             if (_vm == null || IsFaulted) return;
 
             _input.Poll();
+            _input.PumpKeys(_vm);
             if (_audio != null) _audio.Update(_vm.Sound);
-            else _vm.Sound.HostBusy = false;      // no device: never block on sound
+            else {
+                // No device: still run the timeline, silently, so SOUND and
+                // foreground PLAY take the time they should and then let go.
+                if (_silent == null) _silent = new SoundScheduler(1);
+                _silent.Update(_vm.Sound, Time.unscaledTimeAsDouble, null);
+            }
 
             // A sound device that reports busy forever would stall the program
             // silently, which is the worst way for this to fail. Say so.
@@ -115,14 +131,15 @@ namespace Unitycoder.UBasic {
                 _blockedFor = 0f;
             }
 
-            _vm.Time = Time.time;
+            _vm.Time = Time.timeAsDouble;
+            _vm.FrameDt = Mathf.Clamp(Time.unscaledDeltaTime, 1f / 240f, 0.1f);
 
             RunState st = _vm.Run(InstructionBudget);
             if (st == RunState.Faulted) {
                 IsFaulted = true;
                 FaultMessage = _vm.FaultMessage;
                 Debug.LogError("[uBasic] runtime error: " + _vm.FaultMessage, this);
-            } else if (st == RunState.Yielded && !_reportedOverrun) {
+            } else if (st == RunState.Yielded && !_reportedOverrun && !_chunk.QBasic) {
                 _reportedOverrun = true;
                 Debug.LogWarning("[uBasic] used the whole instruction budget without " +
                     "reaching WAIT. Add a WAIT inside your main loop, or raise " +
@@ -146,7 +163,7 @@ namespace Unitycoder.UBasic {
             string src = GetCurrentSource();
             _lastCompiledSource = src ?? string.Empty;
             try {
-                _chunk = Compiler.Compile(src);
+                _chunk = Compiler.Compile(src, Dialect);
             } catch (UBasicError e) {
                 IsFaulted = true;
                 FaultMessage = e.Message;
@@ -155,6 +172,7 @@ namespace Unitycoder.UBasic {
             }
 
             if (_audio != null) { _audio.Dispose(); _audio = null; }
+            _silent = null;
             if (EnableSound) {
                 _audio = new UnityAudioAdapter(transform);
                 _audio.Volume = Volume;
@@ -171,6 +189,15 @@ namespace Unitycoder.UBasic {
 
             EnsureTexture();
             Upload();
+        }
+
+        /// <summary>Type a key into the program's keyboard buffer, as read by
+        /// INKEY$ and INPUT. For hosts that get keys from somewhere other
+        /// than Unity's input, such as a web page around a WebGL build. Use
+        /// "\r" for Enter, "\b" for Backspace, and "\0" plus a scan code
+        /// character for extended keys ("\0H" is the up arrow).</summary>
+        public void SendKey(string key) {
+            if (_vm != null) _vm.PushKey(key);
         }
 
         private string GetCurrentSource() {
@@ -286,6 +313,13 @@ namespace Unitycoder.UBasic {
             get {
                 if (_scr == null) return new Rect(0, 0, 1, 1);
                 float sw = UnityEngine.Screen.width, sh = UnityEngine.Screen.height;
+                if (QBasicAspect && _scr.Mode != Screen.CustomMode) {
+                    // Fit a 4:3 box; the pixels are not square, so integer
+                    // scaling does not apply.
+                    float a = _scr.DisplayAspect;
+                    float bw = Mathf.Min(sw, sh * a), bh = bw / a;
+                    return new Rect((sw - bw) * 0.5f, (sh - bh) * 0.5f, bw, bh);
+                }
                 float scale = Mathf.Min(sw / _scr.W, sh / _scr.H);
                 if (PointFilter && scale > 1f) scale = Mathf.Floor(scale);  // integer scaling
                 float w = _scr.W * scale, h = _scr.H * scale;

@@ -26,11 +26,16 @@ namespace Unitycoder.UBasic {
         /// comfortably exceed one frame, or a scheduled start can fall into the
         /// past before the audio thread sees it.</summary>
         public double StartOffset = 0.05;
+        /// <summary>QBasic's background music buffer holds 32 notes; a PLAY
+        /// that overfills it waits for room. Programs lean on this to keep
+        /// animation roughly in step with a long MB tune.</summary>
+        public int BackgroundBuffer = 32;
 
         private readonly Queue<NoteEvent> _pending = new Queue<NoteEvent>();
         private readonly double[] _voiceFreeAt;
         private double _nextStart;
         private double _busyUntil;
+        private int _pendingFg;
 
         public SoundScheduler(int voices) {
             _voiceFreeAt = new double[Math.Max(1, voices)];
@@ -44,6 +49,7 @@ namespace Unitycoder.UBasic {
             _pending.Clear();
             _nextStart = 0;
             _busyUntil = 0;
+            _pendingFg = 0;
             for (int i = 0; i < _voiceFreeAt.Length; i++) _voiceFreeAt[i] = 0;
         }
 
@@ -54,7 +60,10 @@ namespace Unitycoder.UBasic {
             if (starts != null) starts.Clear();
 
             NoteEvent e;
-            while (dev.TryDequeue(out e)) _pending.Enqueue(e);
+            while (dev.TryDequeue(out e)) {
+                _pending.Enqueue(e);
+                if (e.Foreground) _pendingFg++;
+            }
 
             // Anchor the timeline only when there is something to place on it.
             // Pushing _nextStart forward while idle is precisely what made an
@@ -78,6 +87,7 @@ namespace Unitycoder.UBasic {
                 }
 
                 _pending.Dequeue();
+                if (note.Foreground) _pendingFg--;
 
                 if (audible) {
                     ScheduledNote sn;
@@ -90,12 +100,14 @@ namespace Unitycoder.UBasic {
                 }
 
                 _nextStart += note.Duration;
-                if (_nextStart > _busyUntil) _busyUntil = _nextStart;
+                // Only foreground (MF) notes and SOUND hold the program up.
+                if (note.Foreground && _nextStart > _busyUntil) _busyUntil = _nextStart;
             }
 
             // Busy is derived only from notes actually placed, never from the
-            // write cursor.
-            dev.HostBusy = _pending.Count > 0 || now < _busyUntil;
+            // write cursor. Background (MB) music does not count, unless so
+            // much of it is queued that the buffer is full.
+            dev.HostBusy = _pendingFg > 0 || now < _busyUntil || _pending.Count > BackgroundBuffer;
         }
 
         private int FindVoice(double at) {
